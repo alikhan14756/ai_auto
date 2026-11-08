@@ -1,0 +1,444 @@
+# Creator Studio AI - Project Progress Log
+
+## Milestone Status Overview
+
+- [x] **M00: Product Planning & Technical Blueprint** (Completed: 2026-11-07)
+  - Generated docs/01-PRD.md through 06-IMPLEMENTATION-PLAN.md
+  - Generated standalone Mermaid architecture diagrams
+  - Passed 12-point cross-document review (docs/00-PROJECT-REVIEW.md)
+
+- [x] **M01: Repository Setup, Architecture Foundation & Development Environment** (Completed: 2026-11-07)
+  - [x] Monorepo directory structure established (`frontend/`, `backend/`, `docs/`, `scripts/`, `storage/`, `infra/`)
+  - [x] Environment configuration template (`.env.example`) and security guidelines created
+  - [x] Git configuration (`.gitignore`) with clean exclusions
+  - [x] Windows PowerShell automation scripts (`install.ps1`, `dev.ps1`, `test.ps1`)
+  - [x] Backend FastAPI application initialized with structured logging, CORS, and settings management
+  - [x] Health-check endpoint `/api/v1/health` implemented with dynamic service indicators
+  - [x] Database connection abstraction (`app.db.session`) and Alembic migration framework configured
+  - [x] Python 3.12 virtual environment established and dependencies installed (`fastapi`, `sqlalchemy`, `greenlet`, `alembic`, `pydantic`, `asyncpg`)
+  - [x] Backend automated test suite passing (9/9 tests passed in pytest)
+  - [x] M01 Acceptance Criteria objectively verified
+
+- [x] **M02: Frontend Dashboard, Design System & Navigation** (Completed: 2026-11-07)
+  - [x] Obsidian dark-first design system (`#090A0D` canvas, `#FF7A00` Ember accent)
+  - [x] Complete Reusable UI Component Library created (`Button`, `Card`, `Badge`, `ProgressBar`, `StatCard`, `EmptyState`, `Modal`, `Dropdown`, `Tooltip`, `Table`, `Skeleton`, `PageHeader`, `NotificationBanner`, `Input`)
+  - [x] Collapsible sidebar navigation implemented with 4 groups (Workspace, AI Production, Management, System), Lucide icons, collapsed tooltips, active route highlighting, and owner profile section
+  - [x] Top header with dynamic breadcrumbs, search, channel indicator badge, 14 QA checks badge, notifications dropdown, and "+ Create Video" quick action button
+  - [x] Responsive mobile navigation drawer with slide-in animation and backdrop
+  - [x] Rich, functional Executive Dashboard with 5 StatCards, pipeline stepper, active jobs table, upcoming schedule cards, audience retention benchmarks, and activity feed
+  - [x] Interactive "Create Video" modal dialog supporting Long-Form (16:9) and Shorts (9:16) format configuration
+  - [x] All 21 navigation routes scaffolded with structured placeholders and feature lists
+  - [x] Frontend test verification (0 TS errors, 0 ESLint warnings, all pages statically rendered)
+  - [x] M02 Acceptance Criteria objectively verified
+
+- [x] **M03: Database Schema, Supabase Auth & Backend REST API** (Completed: 2026-11-07)
+  - [x] Implemented all 21 relational database models in SQLAlchemy 2.0 Async
+  - [x] Configured Alembic migration framework (`0001_initial_schema.py`)
+  - [x] Implemented AES-256-GCM authenticated encryption for sensitive tokens
+  - [x] Implemented Supabase Auth JWT token verification and auto-provisioning
+  - [x] Implemented Role-Based Access Control (RBAC): `SUPER_ADMIN`, `ADMIN`, `CREATOR`
+  - [x] Implemented multi-tenant channel and project data isolation
+  - [x] Built FastAPI REST API v1 endpoints with Pydantic v2 schemas
+  - [x] Implemented Frontend Supabase Auth foundation in Next.js 15 (`/login`, `/register`)
+  - [x] Backend Pytest Suite: 29/29 tests PASSED
+  - [x] M03 Acceptance Criteria objectively verified
+
+- [x] **M04: Durable Job Queue & Worker Daemon Engine** (Completed: 2026-11-07)
+  - [x] Database Queue Model Completion: Added `current_stage`, `started_at`, `completed_at` to `AutomationJob` with state transition validation matrix and generated Alembic migration `0002_add_job_stage_and_timestamps.py`.
+  - [x] Atomic Job Claiming (`JobQueueService`): Implemented `SELECT ... FOR UPDATE SKIP LOCKED` (PostgreSQL) and atomic conditional updates (`WHERE status IN ('QUEUED', 'RETRYING')`) guaranteeing zero duplicate claims across concurrent workers.
+  - [x] Heartbeat & Lease Watchdog: Implemented periodic lease renewal (every 10s) and automated crash watchdog reclaiming stale jobs (older than 120s) with backoff rescheduling or terminal failure upon retry exhaustion.
+  - [x] Retries & Exponential Backoff: Implemented deterministic backoff formula ($2^{\text{attempt}-1} \times 30\text{s}$) with distinction between transient errors (retried up to `max_retries`) and permanent errors (immediate failure without retries).
+  - [x] Extensible Job Handler Registry: Created `BaseJobHandler`, `JobHandlerRegistry`, and `DemoJobHandler` with multi-stage progress reporting (10% -> 40% -> 75% -> 95% -> 100%) and graceful cancellation checks.
+  - [x] Standalone Worker Daemon (`app.workers.runner`): Created long-running daemon with graceful signal handling (SIGINT/SIGTERM), configurable polling interval, and `scripts/worker.ps1` runner.
+  - [x] Idempotency & Budget Safeguards: Enforced unique idempotency keys preventing duplicate submissions, and integrated $0.00 hard budget guardrail rejecting billable jobs when channel monthly limit is capped.
+  - [x] FastAPI Queue REST Endpoints (`/api/v1/jobs`):
+    - `POST /api/v1/jobs` (enqueues job with tenant verification and budget check)
+    - `GET /api/v1/jobs` (paginated list filtered by channel and status)
+    - `GET /api/v1/jobs/{id}` (full job details with tenant isolation)
+    - `GET /api/v1/jobs/{id}/progress` (lightweight progress percentage and stage)
+    - `POST /api/v1/jobs/{id}/cancel` (safe cancellation)
+    - `POST /api/v1/jobs/{id}/retry` (manual reset of failed jobs)
+    - `GET /api/v1/jobs/{id}/progress-stream` (Server-Sent Events streaming real-time progress)
+  - [x] Comprehensive Automated Tests (**46/46 tests PASSED in 26.6s**):
+    - `tests/test_queue_service.py` (5 tests: enqueue, claim, progress, cancel, manual retry)
+    - `tests/test_queue_concurrency.py` (2 tests: 4 concurrent workers with 0 duplicates, priority ordering)
+    - `tests/test_queue_recovery.py` (2 tests: crashed worker lease recovery, max retries exhaustion)
+    - `tests/test_queue_retries.py` (2 tests: transient failure exponential backoff math, permanent failure)
+    - `tests/test_queue_api.py` (6 tests: auth, unregistered types, cross-tenant isolation, idempotency duplicate protection, $0 budget rejection, and end-to-end worker daemon execution)
+    - Core models, auth, encryption, and health tests (29 tests maintained and passing)
+  - [x] Windows PowerShell script `scripts/worker.ps1` created and tested.
+  - [x] Unified test runner `.\scripts\test.ps1`: **100% PASSED** (46 backend tests, frontend typecheck, frontend lint).
+  - [x] M04 Acceptance Criteria objectively verified
+
+- [x] **M05: Gemini AI Provider & Topic Research Engine** (Completed: 2026-11-07)
+  - [x] Official Google GenAI SDK integration (`google-genai>=3.0.0`) with structured JSON schema output and in-memory sliding-window rate limiting (15 RPM / 1,500 RPD).
+  - [x] Deterministic `MockAIProvider` for 100% offline, keyless testing and fault simulation (rate limit, timeout, provider failure).
+  - [x] Token consumption metering and $0.00 hard budget guardrail (`UsageTrackingService`) rejecting billable API requests when monthly spend is capped.
+  - [x] Multi-dimensional opportunity scoring (`TopicScoringService`) with deterministic formula (relevance, practical value, originality, search demand, competition advantage) and Jaccard token-set semantic deduplication against historical channel topics.
+  - [x] End-to-end Topic Research Engine (`TopicResearchService`) generating and persisting `Topic` and `ResearchSource` records.
+  - [x] Background queue worker handler `TopicResearchJobHandler` registered for `DISCOVER_TOPICS` jobs with 5 progress stages.
+  - [x] REST API endpoints (`/api/v1/topics` and `/api/v1/providers`) with tenant isolation and approval/rejection workflows.
+  - [x] Frontend interactive views: live Topic Research dashboard (`/topics`), AI Provider settings (`/settings/providers`), and Usage & Budget meter (`/settings/usage`).
+
+- [x] **M06: Script Generation & Factual Verification Studio** (Completed: 2026-11-07)
+  - [x] Procedural Script Generation Service (`ScriptGenerationService`) supporting both Long-Form (6–10 min) and Shorts (30–60s) formats.
+  - [x] Factual Verification Engine (`FactCheckingService`) extracting claims, cross-referencing against topic `ResearchSource` records, and populating citations with confidence scores.
+  - [x] Script Quality and Originality Evaluator (`ScriptEvaluationService`) computing spoken word count (~140 WPM), hook urgency, clarity, trigram repetition index, and composite quality scores.
+  - [x] Incremental Script Versioning (`version` counter), scene-by-scene storyboard synchronization (`Scene` records), and individual section regeneration without wiping the script.
+  - [x] Outline Generation (`POST /api/v1/scripts/outline`) providing early structural validation and visual concept blueprinting before full narrative synthesis.
+  - [x] Background queue worker handlers registered in `JobHandlerRegistry`:
+    - `GENERATE_SCRIPT` (`ScriptGenerationJobHandler`)
+    - `SCRIPT_OUTLINE_GENERATION` (`ScriptOutlineJobHandler`)
+    - `SCRIPT_FACT_CHECK` (`ScriptFactCheckJobHandler`)
+    - `SCRIPT_QUALITY_EVALUATION` (`ScriptQualityEvaluationJobHandler`)
+  - [x] REST API endpoints (`/api/v1/scripts`): sync generation, outline generation, list, detail, patch, section regeneration, and approval/locking advancing `VideoProject.state = "SCRIPT_APPROVED"`.
+  - [x] Frontend Script Studio (`/script-studio`): scene editor, fact-checking matrix, quality metrics, draft saving, and section regeneration.
+  - [x] Pytest test suite: **80/80 tests PASSED in 33.6s** (100% pass rate).
+  - [x] Frontend checks: **0 TypeScript errors, 0 ESLint warnings, 27/27 pages compiled cleanly in Next.js production build**.
+  - [x] M06 Acceptance Criteria objectively verified.
+
+- [x] **M07: Local Voice Generation & Audio Mastering** (Completed: 2026-11-07)
+  - [x] Provider-independent voice synthesis subsystem with `VoiceProviderInterface`, `VoiceInfo`, `WordTimestamp`, and `GeneratedAudioResult`.
+  - [x] Zero-cost Microsoft Edge neural TTS provider (`EdgeTTSProvider`) with rate/pitch tuning and word boundary event parsing.
+  - [x] Deterministic keyless test provider (`MockVoiceProvider`) generating valid 16-bit PCM RIFF WAV audio bytes, word timestamps, and loudness metrics.
+  - [x] Pure-Python audio processing engine (`AudioProcessingService`): RIFF WAV header parsing, frame decoding, RMS dBFS & LUFS loudness calculation, calibrated silence generation, and multi-chunk concatenation with 350ms pause insertion.
+  - [x] Automated audio quality evaluator (`AudioQualityService`) validating file integrity, scene completeness, duration vs 140 WPM benchmark, silence thresholds, and broadcast compliance (target -14 LUFS).
+  - [x] Full narration pipeline service (`NarrationService`) supporting synchronous & asynchronous speech synthesis, chunk-to-master track stitching, and surgical single-scene regeneration (`regenerate_scene_audio`).
+  - [x] Voice profile management (`VoiceProfile` model, CRUD APIs, speed/pitch preferences, active channel association).
+  - [x] Master narration track management (`NarrationTrack` model, chunk storage mapping, approval workflow).
+  - [x] Alembic migration `0003_add_voice_profiles_and_narration_tracks.py` with verified forward/backward static SQL generation.
+  - [x] Background worker queue handlers registered in `JobHandlerRegistry`:
+    - `NARRATION_GENERATION` (`NarrationGenerationJobHandler`)
+    - `VOICE_PREVIEW_GENERATION` (`VoicePreviewJobHandler`)
+    - `NARRATION_SECTION_REGENERATE` (`NarrationSectionRegenerateJobHandler`)
+  - [x] REST API endpoints (`/api/v1/voice/*`): voice catalogue, preview audition, profile CRUD, sync/async generation, track history, section regeneration, approval, and secure binary WAV streaming (`/tracks/{id}/audio`, `/chunks/{id}/audio`).
+  - [x] Frontend Voice Studio (`/voice-studio`) in Obsidian dark-first design system (`#090A0D` / `#FF7A00`) with live voice preview audition, rate/pitch sliders, approved script target inspector, master audio player, scene chunk inspector, single-scene regeneration, and technical QA badges.
+  - [x] Strict zero-dollar budget baseline enforcement ($0.00 default cap, no paid provider fallback).
+  - [x] Backend automated test suite: **98/98 tests PASSED in 45.6s** (100% pass rate).
+  - [x] Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 routes compiled statically**.
+  - [x] M07 Acceptance Criteria objectively verified.
+
+- [x] **M08: Visual Planning, Asset Discovery & AI Image Generation** (Completed: 2026-11-07)
+  - [x] Structured Visual Storyboard Planning Engine (`VisualPlanningService`): maps approved scripts and actual voiceover timings to visual archetypes, purposes (`HOOK_ENGAGEMENT`, `DEMONSTRATION`, `CONCEPT_EXPLANATION`, `SUMMARY`), suggested asset types, search keywords, prompts, and transitions.
+  - [x] Provider-independent visual provider layer:
+    - `MockStockProvider`: deterministic offline stock search returning categorized, CC0-verified tech media.
+    - `MockImageProvider`: Pillow-based offline image generator rendering crisp PNG placeholders ($1280\times720$ and $720\times1280$) in Obsidian & Vivid Ember design tokens.
+    - `PexelsProvider` & `PixabayProvider`: official REST stock API clients.
+    - `GeminiImageProvider`: Google GenAI Imagen engine respecting zero-dollar budget ceiling.
+    - `VisualProviderFactory`: dynamic dispatch and test overrides.
+  - [x] Visual Asset Domain Service (`VisualAssetService`): external stock search, stock asset import, generative image synthesis, secure multipart upload with magic byte sniffing (PNG, JPEG, WebP, MP4), SHA-256 integrity hashing, and licensing provenance tracking.
+  - [x] Licensing Safeguards Engine: distinguishes `VERIFIED_COMMERCIAL`, `ATTRIBUTION_REQUIRED`, `LICENSE_REVIEW_REQUIRED`, and `RESTRICTED`. Preserves attribution text and author metadata.
+  - [x] Database Schema & Alembic Migration:
+    - Added `Storyboard` model and table (`storyboards`).
+    - Enhanced `Scene` model with storyboard foreign keys, visual purpose, asset type, keywords, image prompt, transition, review status, and `selected_asset_id`.
+    - Enhanced `MediaAsset` model with channel isolation, title, category, provider, license status, aspect ratio, dimensions, and SHA-256 hash.
+    - Generated and verified migration `0004_add_storyboards_and_media_asset_enhancements.py`.
+  - [x] Durable worker queue handlers registered in `JobHandlerRegistry`:
+    - `STORYBOARD_GENERATION` (`StoryboardGenerationJobHandler`)
+    - `VISUAL_ASSET_SEARCH` (`VisualAssetSearchJobHandler`)
+    - `IMAGE_GENERATION` (`ImageGenerationJobHandler`)
+  - [x] REST API Surface (`/api/v1/visual/*`): storyboard generation, project retrieval, scene updates, asset assignment, AI image synthesis, scene reordering, storyboard approval, stock search, stock import, asset listing, secure file upload, and binary asset streaming.
+  - [x] Frontend Visual Studio (`/visual-studio`) & Media Library (`/media`) in Obsidian dark-first design system (`#090A0D` / `#FF7A00`) with scene card breakdowns, AI image generation modal, stock discovery modal, licensing inspection drawer, and approval flow.
+  - [x] Automated test suite: **117/117 backend tests PASSED in 52.71s** (100% pass rate).
+  - [x] Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 static routes compiled cleanly in Next.js production build**.
+  - [x] CodeRabbit audit findings remediated: 4 Critical cross-tenant IDOR/authorization issues fixed, licensing gate verified, chunked FileResponse streaming implemented, and prefix path traversal hardened.
+  - [x] M08 Acceptance Criteria objectively verified.
+
+- [x] **M09: FFmpeg Video Rendering & Kinetic Typography Subtitles** (Completed: 2026-11-08)
+  - [x] Host FFmpeg discovery & capability inspection (`FFmpegDetector`): automatically discovers host FFmpeg binaries (detected Gyan.FFmpeg v9.0.2 full build on Windows `PATH` / winget packages) and inspects codec/filter capabilities.
+  - [x] Safe command line builder (`FFmpegCommandBuilder`): constructs secure parameter lists avoiding `shell=True`, escapes path separators/colons, builds scaling/cropping filters (`1920x1080` for 16:9 and `1080x1920` for 9:16 Shorts), dynamic motion effects (`zoom_in`, `zoom_out`, `pan_left`, `pan_right`, `static`), and transitions (`cut`, `fade`, `dissolve`, `wipeleft`).
+  - [x] Subtitle & caption compiler (`SubtitleCompiler`): compiles SRT and kinetic SubStation Alpha (`.ass`) typography with word-level karaoke tags (`{\k...}`), Vivid Ember active word glow (`#FF7A00` / `&H00007AFF`), obsidian border (`#090A0D`), and font presets (`vivid_ember`, `minimal_white`, `bold_yellow`, `neon_cyan`).
+  - [x] Multi-track audio assembly & ducking: preserves M07 voiceover master track at 100% volume, mixes background ambient music, and applies automated sidechain ducking (-6 dB attenuation during voice intervals).
+  - [x] Dual-mode video rendering engine (`VideoRenderingEngine`):
+    - Subprocess execution using real host FFmpeg (`libx264`, `aac`, `yuv420p`, `faststart`).
+    - Offline fallback (`MockVideoRenderer`): pure-Python synthesis of structurally valid MP4 containers (`ftyp`, `moov`, `trak`, `mdat` ISO boxes) enabling 100% offline, zero-binary portable execution.
+  - [x] 14-point pre-publish quality assurance gate (`VideoValidationService`): inspects MP4 container headers, streams, resolution, duration tolerance ($\pm 2.0$s), and generates structured `QualityReport` records (`status="PASSED"`, score=100/100).
+  - [x] Timeline Domain Service (`TimelineService`): compiles timeline from storyboards, tracks duration recalculations, and supports sequential drag-and-drop scene reordering with downstream timestamp ripple effects.
+  - [x] Database Schema & Alembic Migration:
+    - Added `VideoTimeline` model (`video_timelines` table).
+    - Added `TimelineScene` model (`timeline_scenes` table).
+    - Added `CaptionAsset` model (`caption_assets` table).
+    - Enhanced `RenderJob` with `timeline_id`, `current_stage`, `progress_percentage`, `video_width`, `video_height`, `fps`, `aspect_ratio`, `renderer_mode`, `quality_status`, `log_tail`.
+    - Generated and verified migration `0005_add_video_timelines_and_render_enhancements.py`.
+  - [x] Durable worker queue handlers registered in `JobHandlerRegistry`:
+    - `TIMELINE_GENERATION` (`TimelineGenerationJobHandler`)
+    - `VIDEO_RENDER` (`VideoRenderJobHandler`)
+    - `VIDEO_VALIDATION` (`VideoValidationJobHandler`)
+  - [x] REST API Surface (`/api/v1/video/*`): timeline creation, project timelines listing, scene updates, scene reordering, render trigger, render status polling, QA report retrieval, and authenticated streaming endpoint (`/renders/{id}/stream`) with path traversal boundaries.
+  - [x] Frontend Video Studio (`/video-editor`) in Obsidian dark-first design system (`#090A0D` / `#FF7A00`):
+    - 16:9 / 9:16 aspect ratio switcher with live viewport scrub simulator.
+    - Kinetic subtitle overlay with active word highlight.
+    - Multi-track timeline tracks (Visual Storyboard clips, Master Narration, Ambient Music with ducking slider, Subtitles preset picker).
+    - Clip inspector (title, Ken-Burns motion, transitions, narration script).
+    - FFmpeg render controls (FPS, Resolution, Engine Mode).
+    - Live render progress modal with 6 pipeline stages and real-time execution logs.
+    - Pre-publish QA audit gate indicator (black frame threshold, target LUFS, sync drift).
+    - Render History table with direct download and streaming links.
+  - [x] Automated test suite: **133/133 backend tests PASSED in 69.43s** (100% pass rate).
+  - [x] Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 static routes compiled cleanly in Next.js production build**.
+  - [x] Master test script `.\scripts\test.ps1`: **100% PASSED**.
+  - [x] M09 Acceptance Criteria objectively verified.
+
+- [x] **M10: Thumbnail Composition & YouTube SEO Metadata Engine** (Completed: 2026-11-08)
+  - [x] Multi-layer procedural graphic composition engine in Pillow (`ThumbnailComposer`): renders exact 1280x720 (16:9) graphic assets under 2.0 MB cap, with dynamic font scaling, multi-line wrapping, drop-shadows, obsidian background, radial neon glow, tech grid overlays, and hook badge pills.
+  - [x] 6 Reusable graphic style presets implemented: `modern_tech_editorial`, `minimalist_professional`, `high_contrast_educational`, `bold_creator`, `software_tutorial`, `cinematic_tech`.
+  - [x] Distinct concept generator (`ThumbnailConceptGenerator`): produces 3 contrasting creative variants (A: Tool Contrast, B: Practical Utility / Metric Drama, C: Developer Workflow / Blueprint) without deceptive clickbait.
+  - [x] Programmatic thumbnail quality validator (`ThumbnailValidator`): checks exact 1280x720 dimensions, 16:9 aspect ratio, < 2.0 MB file size ceiling, PNG/JPEG format compliance, and generates structured `quality_report`.
+  - [x] Structured YouTube SEO Metadata Generator (`SEOMetadataGenerator`):
+    - Multi-candidate title generator (<= 95 characters, optimal 50-70 range, non-clickbait).
+    - Chapter generator based on scene timecodes (starts at mandatory `00:00`).
+    - Structured description generator with hook overview, key takeaways, verified research citations (from M05/M06 topics), and mandatory synthetic media disclosure (`syntheticMedia: true`).
+    - Search tags generator (strict <= 500 characters limit).
+    - Hashtags generator (<= 5 semantic tags).
+    - Pinned comment discussion starter generator.
+  - [x] Deterministic SEO quality scorer (`SEOMetadataScorer`): 100-point algorithm auditing title glancability, clickbait regex penalty, chapter structure, description depth, tag density, and thumbnail/title pairing synergy score.
+  - [x] Publication Package Assembler (`PublicationService`): creates immutable production bundle linking finished video render (M09), approved thumbnail, and approved SEO metadata draft with `READY_FOR_QA` status ready for M11 QA gate.
+  - [x] Database Schema & Alembic Migration:
+    - Enhanced `Thumbnail` model (`thumbnails` table) with `style_preset`, `width`, `height`, `file_size_bytes`, `format`, `composition_data`, `concept_data`, `quality_status`, `quality_report`, `version`.
+    - Created `VideoMetadataDraft` model (`video_metadata_drafts` table).
+    - Created `PublicationPackage` model (`publication_packages` table).
+    - Generated Alembic migration `0006_add_thumbnail_compositions_and_seo_metadata.py`.
+  - [x] Durable worker queue handlers registered in `JobHandlerRegistry`:
+    - `THUMBNAIL_CONCEPT_GENERATION` (`ThumbnailConceptGenerationJobHandler`)
+    - `THUMBNAIL_COMPOSITION_RENDER` (`ThumbnailCompositionRenderJobHandler`)
+    - `SEO_METADATA_GENERATION` (`SEOMetadataGenerationJobHandler`)
+    - `PUBLICATION_PACKAGE_PREPARATION` (`PublicationPackagePreparationJobHandler`)
+  - [x] REST API Surface:
+    - `/api/v1/thumbnails/*`: generate concepts, list project thumbnails, inspect, patch composition, select variant, stream file, and validate.
+    - `/api/v1/metadata/*`: generate draft, list drafts, inspect, patch, and approve.
+    - `/api/v1/publication-packages/*`: assemble package, inspect, and approve.
+  - [x] Frontend Studios implemented in Obsidian dark design system:
+    - `/thumbnail-studio`: 3-variant concept cards, live procedural composition canvas with desktop/mobile viewport switcher, headline & badge typography editors, style preset selector, accent color picker, and layer toggles.
+    - `/seo-studio`: Title candidate selector, interactive chapter markers (00:00 start), tags character gauge (500 chars limit), hashtags, pinned comment, 100-point SEO quality gauge, and thumbnail/title pairing synergy indicator.
+    - `/publishing`: Publication package review screen bundling video master render, selected thumbnail, approved metadata, and publication manifest.
+  - [x] Automated test suite: **146/146 backend tests PASSED in 65.84s** (100% pass rate).
+  - [x] Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 static routes compiled cleanly in Next.js production build**.
+  - [x] Master test script `.\scripts\test.ps1`: **100% PASSED**.
+  - [x] M10 Acceptance Criteria objectively verified.
+
+- [x] **M11: Deterministic Quality Assurance Veto Gate** (Completed: 2026-11-08)
+  - [x] Zero circular trust inspection architecture (`backend/app/services/qa/`) across 12 distinct verification categories:
+    1. `FACTUAL_ACCURACY` (15%): detects unverified or contradicted script claims and checks citation confidence scores.
+    2. `VIDEO_TECHNICAL` (15%): inspects container streams, MP4 faststart atom, black frames (>0.25s critical veto), and freeze frames (>2.0s).
+    3. `NARRATION_AUDIO` (10%): verifies EBU R128 loudness (-14 LUFS target), true peak clipping (ceiling -1.0 dBTP), and dead-air silence intervals (>1.5s).
+    4. `VISUAL_ASSETS` (10%): scene asset coverage, minimum 1080p resolution, and consecutive identical asset repetition detection.
+    5. `SCRIPT_QUALITY` (10%): spoken pacing cadence (~140 WPM), length boundaries, readability, and trigram repetition detection.
+    6. `PACKAGE_COMPLETENESS` (10%): verifies completed MP4 render, approved thumbnail, and approved SEO metadata draft are present with zero orphaned links.
+    7. `THUMBNAIL_QUALITY` (5%): checks exact 1280x720 (16:9) dimensions, file size strictly under 2.0 MB, and PNG/JPEG format compliance.
+    8. `METADATA_SEO` (5%): title length (<=95 chars), chapters starting at mandatory 00:00, description depth, and search tags limit (<=500 chars).
+    9. `COPYRIGHT_LICENSING` (5%): verifies commercial broadcast rights (`COMMERCIAL_USE_ALLOWED`, `CC0`, `AI_GENERATED`) and flags non-commercial/prohibited assets.
+    10. `SECURITY_PRIVACY` (5%): high-entropy regex secret scanning across scripts, metadata, and tags for Google Gemini, OpenAI, Anthropic, ElevenLabs, GitHub, AWS, and JWT tokens (CRITICAL veto if exposed).
+    11. `CAPTION_INTEGRITY` (5%): ASS/SRT syntax, timing monotonicity, and alignment against spoken narrative.
+    12. `YOUTUBE_POLICY` (5%): enforces synthetic media disclosure flag (`syntheticMedia: true`) and scans for deceptive/scam signals.
+  - [x] Deterministic Scoring & Hard Veto Engine:
+    - Transparent category weights summing to 1.00 and severity deduction penalties (`CRITICAL`: -100, `HIGH`: -25, `MEDIUM`: -10, `LOW`: -3).
+    - Hard Veto Matrix: Any unresolved `CRITICAL` finding immediately vetoes publication (`can_publish = False`, non-bypassable).
+    - Unexempted `HIGH` findings block publication until resolved or granted an administrative exception.
+  - [x] Administrative Exception Policy & Audit Ledger:
+    - Strict RBAC: Only `SUPER_ADMIN` and `ADMIN` can authorize exceptions (`QAException` model).
+    - Hard boundary: `CRITICAL` severity findings can NEVER be overridden by exception.
+  - [x] Version-Aware Cache Invalidation (`QAInvalidationTracker`):
+    - Computes snapshot component hashes (script, narration, visual assets, render, thumbnail, metadata) and targets only invalidated categories upon asset modifications.
+  - [x] Targeted Actionable Remediation Engine (`QACorrectionEngine`):
+    - Generates step-by-step remediation advice and navigation targets for every discovered defect.
+  - [x] Database Schema & Alembic Migration:
+    - Added `QARun`, `QACheck`, `QAFinding`, `QACategoryScore`, and `QAException` models in `backend/app/models/qa.py`.
+    - Generated and verified migration `0007_add_qa_veto_gate_and_audit_models.py`.
+  - [x] Durable worker queue handler registered in `JobHandlerRegistry`:
+    - `QA_PACKAGE_INSPECTION` (`QAPackageInspectionJobHandler`).
+  - [x] REST API Surface (`/api/v1/qa/*`):
+    - `POST /api/v1/qa/runs`: triggers synchronous or worker-enqueued QA evaluation runs.
+    - `GET /api/v1/qa/runs/{id}`: full inspection report with checks, findings, and category scores.
+    - `GET /api/v1/qa/runs/project/{id}`: lists historical runs for a project.
+    - `GET /api/v1/qa/runs/{id}/readiness`: lightweight publication readiness veto decision endpoint.
+    - `POST /api/v1/qa/findings/{id}/resolve`: marks finding resolved with notes and re-evaluates veto gate.
+    - `POST /api/v1/qa/findings/{id}/exception`: authorizes admin exception and re-evaluates veto gate.
+    - `GET /api/v1/qa/findings/{id}/guide`: returns actionable remediation steps.
+  - [x] Frontend QA Center (`/production`) in Obsidian dark design system (`#090A0D` / `#FF7A00`):
+    - Veto Decision Hero Banner with dynamic status badges (`BLOCKED`, `NEEDS_REVIEW`, `READY_FOR_APPROVAL`, `APPROVED`).
+    - 12-Category Score Matrix with progress bars, weights, and passed/warning/failed counts.
+    - Interactive Findings list with severity badges, remediation guidance, and resolution/exception dialog modals.
+  - [x] Comprehensive Automated Test Suite:
+    - 28 new dedicated tests added across 4 test modules:
+      - `tests/test_qa_validators.py` (12 tests)
+      - `tests/test_qa_scoring_and_veto.py` (10 tests)
+      - `tests/test_qa_api_and_worker.py` (2 tests)
+      - `tests/test_qa_security_and_exceptions.py` (4 tests)
+    - Full Pytest Suite: **176/176 backend tests PASSED in 97.33s** (100% pass rate).
+    - Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 static routes compiled cleanly in Next.js production build**.
+    - Master test runner `.\scripts\test.ps1`: **100% PASSED**.
+  - [x] M11 Acceptance Criteria objectively verified.
+
+- [x] **M12: YouTube OAuth 2.0 & Resumable Publishing** (Completed: 2026-11-08)
+  - [x] Architecture & Security Specifications:
+    - Authored `docs/M12-YOUTUBE-INTEGRATION.md` and `docs/M12-SECURITY.md` detailing state CSRF validation, AES-256 token cipher, chunked resumable streaming, status 308 interruption recovery, and zero secret exposure.
+  - [x] Database Schema & Alembic Migration:
+    - Enhanced `PublishingJob` model with `publication_package_id`, `idempotency_key`, `bytes_uploaded`, `total_bytes`, `current_stage`, `retry_count`, `max_retries`, `last_error_code`, `last_error_message`, `self_declared_made_for_kids`, `title`, `description`, `tags`, `category_id`.
+    - Added `YouTubeUploadSession` model in `backend/app/models/publishing.py` with encrypted session URI and byte offsets.
+    - Generated and verified migration `0008_add_youtube_publishing_and_resumable_sessions.py`.
+  - [x] YouTube OAuth 2.0 Service (`app.services.youtube.oauth`):
+    - Implemented HMAC-SHA256 CSRF state token generation and 10-minute expiry verification.
+    - Implemented code exchange, refresh token management, channel profile retrieval, and safe credential revocation.
+    - Encrypted refresh tokens using AES-256-GCM authenticated cipher before writing to the database.
+  - [x] Resumable Uploader Protocol (`app.services.youtube.resumable_uploader`):
+    - Implemented initial upload session initiation with metadata headers.
+    - Configured chunked streaming (8 MiB default) with Content-Range tracking.
+    - Implemented network failure recovery via byte-range status queries (`bytes */size`) receiving HTTP 308 and resuming from the verified offset.
+    - Implemented exponential backoff with jitter and `Retry-After` support.
+    - Implemented custom thumbnail upload attachment to published videos.
+  - [x] Server-Side Mandatory M11 QA Veto Gate Enforcement (`YouTubePublishingService`):
+    - Absolute non-bypassable server-side validation on every publication request.
+    - Rejects publications if `can_publish == False`, if veto decision is not `APPROVED` or `READY_FOR_APPROVAL`, or if any `CRITICAL` finding is unresolved.
+    - Implemented anti-drift verification detecting post-approval asset hash modifications.
+    - Implemented idempotency key checks preventing duplicate uploads.
+  - [x] Durable Background Worker Handlers:
+    - Registered `YOUTUBE_VIDEO_UPLOAD` (`YouTubeVideoUploadJobHandler`) and `YOUTUBE_CHANNEL_SYNC` (`YouTubeChannelSyncJobHandler`) in `JobHandlerRegistry`.
+  - [x] REST API Surface (`/api/v1/youtube/*`):
+    - `GET /api/v1/youtube/connect`: secure OAuth consent URL with state HMAC.
+    - `GET /api/v1/youtube/oauth/callback`: code exchange and channel credential persistence.
+    - `GET /api/v1/youtube/connection`: sanitized connection status without secrets.
+    - `POST /api/v1/youtube/disconnect`: revokes and clears OAuth tokens.
+    - `POST /api/v1/youtube/publications`: creates verified publication job (M11 QA gate enforced).
+    - `POST /api/v1/youtube/publications/{id}/upload`: triggers synchronous or worker-enqueued streaming.
+    - `GET /api/v1/youtube/publications/{id}/progress`: live byte upload progress monitor.
+    - `POST /api/v1/youtube/publications/{id}/cancel` & `/retry`: upload lifecycle controls.
+    - `GET /api/v1/youtube/publications`: lists publication history for project or channel.
+  - [x] Frontend Publishing Studio (`/publishing`) in Obsidian dark design system:
+    - YouTube Channel connection card with status indicator, avatar, and connect/disconnect actions.
+    - M11 QA Veto Gate Hero card locking publish buttons if video is unverified or drifted.
+    - Publication Composer with Privacy selector (`unlisted`, `private`, `public`), native YouTube scheduling, and synthetic media declarations.
+    - Live Resumable Upload Monitor displaying uploaded bytes, total bytes, progress percentage, and stage.
+    - Publication History audit table with direct YouTube watch links.
+  - [x] Comprehensive Automated Test Suite:
+    - 16 new dedicated tests added across 4 test modules:
+      - `tests/test_youtube_oauth_and_security.py` (5 tests)
+      - `tests/test_youtube_resumable_uploader.py` (3 tests)
+      - `tests/test_youtube_veto_gate_and_publishing.py` (6 tests)
+      - `tests/test_youtube_api_and_worker.py` (2 tests)
+    - Full Pytest Suite: **192/192 backend tests PASSED in 113.11s** (100% pass rate).
+    - Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 static routes compiled cleanly in Next.js production build**.
+    - Master test runner `.\scripts\test.ps1`: **100% PASSED**.
+  - [x] M12 Acceptance Criteria objectively verified.
+
+- [x] **M13: YouTube Analytics Ingestion & Topic Optimization Loop** (Completed: 2026-11-08)
+  - [x] YouTube Analytics Architecture Blueprint & Metrics Catalog (`docs/M13-ANALYTICS-ARCHITECTURE.md`, `docs/M13-METRICS-REFERENCE.md`, `docs/M13-API-INTEGRATION.md`).
+  - [x] Database Schema & Alembic Migration (`0009_add_youtube_analytics_and_intelligence.py`):
+    - Added `channel_analytics_snapshots`, `video_analytics_snapshots`, `audience_retention_snapshots`, `traffic_source_snapshots`, `performance_insights`, `performance_recommendations`, `analytics_sync_runs`.
+    - Enforced unique constraints, tenant-scoped foreign keys, and safe upserts.
+  - [x] YouTube Analytics API v2 & Data API v3 Ingestion Service (`YouTubeAnalyticsService`):
+    - Implemented reporting query dispatch with official scopes (`yt-analytics.readonly`, `youtube.readonly`).
+    - Extended `MockYouTubeClient` with realistic 100-point retention curves, daily channel trends, video breakdowns, and traffic sources for zero-dollar offline CI.
+  - [x] Durable Background Worker Queue Handlers (`backend/app/workers/handlers/analytics.py`):
+    - Registered 5 worker handlers in `JobHandlerRegistry`: `YOUTUBE_CHANNEL_ANALYTICS_SYNC`, `YOUTUBE_VIDEO_ANALYTICS_SYNC`, `YOUTUBE_RETENTION_ANALYTICS_SYNC`, `YOUTUBE_TRAFFIC_ANALYTICS_SYNC`, `YOUTUBE_ANALYTICS_RECONCILIATION`.
+  - [x] Performance Intelligence Engine (`PerformanceIntelligenceEngine`):
+    - Computed transparent deterministic baselines (median views, median 30s retention, median CTR).
+    - Detected outperforming videos (> 1.35x median) and hook drop-offs (< 65% retention at 30s) with explicit comparison baselines.
+  - [x] Algorithmic Topic Retention Feedback Loop (`TopicRetentionFeedbackLoop`):
+    - Computed topic category retention multipliers clamped within $[0.70, 1.30]$.
+    - Rebalanced `ChannelSettings.topic_retention_weights` directly linking into M05 `TopicScoringService`.
+  - [x] FastAPI REST Endpoints under `/api/v1/analytics/*`:
+    - `/overview`, `/trends`, `/videos`, `/videos/{id}/retention`, `/traffic-sources`, `/audience`, `/sync`, `/sync/status`, `/insights`, `/recommendations`, `/recommendations/{id}/accept`, `/content-strategy`.
+    - Enforced strict tenant isolation and BOLA protection against unauthorized cross-channel queries or mutations.
+  - [x] Obsidian Dark Frontend Studio (`src/app/analytics/page.tsx` & `src/app/performance/page.tsx`):
+    - Implemented tabbed studio layout: Overview & Velocity, Video Performance, Retention Studio (interactive SVG 100-point curve with 70% hook line), Audience & Traffic, AI Recommendations, and Content Strategy.
+    - Connected client UI to FastAPI backend with graceful fallback.
+  - [x] Comprehensive Automated Test Suite:
+    - 17 new dedicated tests added across 4 test modules:
+      - `tests/test_youtube_analytics_service.py` (6 tests)
+      - `tests/test_performance_intelligence_and_feedback.py` (3 tests)
+      - `tests/test_analytics_api_and_tenant_isolation.py` (5 tests)
+      - `tests/test_analytics_workers.py` (3 tests)
+    - Full Pytest Suite: **209/209 backend tests PASSED in 144.16s** (100% pass rate).
+    - Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 static routes prerendered in Next.js build**.
+    - Master test runner `.\scripts\test.ps1`: **100% PASSED**.
+  - [x] M13 Acceptance Criteria objectively verified.
+
+- [x] **M14: Autonomous Content Optimization & Workflow Orchestration** (Completed: 2026-11-08)
+  - [x] Architecture & Documentation (`docs/M14-*.md`):
+    - `M14-AUTOMATION-ARCHITECTURE.md`: State machine transition matrix, DAG traversal, checkpoint halts, and watchdog recovery.
+    - `M14-WORKFLOW-REFERENCE.md`: 8 built-in templates (Long-Form, Shorts, Repurposing, Mini-Series, Topic Research, Script Only, Recovery, Analytics Planning).
+    - `M14-AUTOMATION-POLICIES.md`: Tiers 0–3 (Level 0 Manual, Level 1 Assisted [Default], Level 2 Controlled, Level 3 Scheduled), spend ceilings, and non-bypassable gates.
+    - `M14-SECURITY-AND-SAFETY.md`: Threat model, injection defense, BOLA/IDOR protection, and append-only audit trail.
+  - [x] Database Schema & Alembic Migration (`backend/alembic/versions/0010_add_workflow_orchestration_and_policies.py`):
+    - Added tables: `workflow_templates`, `workflow_definitions`, `workflow_executions`, `workflow_stages`, `workflow_policies`, `workflow_schedules`, `resource_usage_records`, `workflow_events`, `workflow_failures`, `optimization_recommendations`.
+  - [x] Orchestration Services:
+    - `WorkflowEngine`: Deterministic state transitions, stage DAG dispatch, approval checkpoints (`WAITING_FOR_APPROVAL`), and resumption.
+    - `PolicyEngine`: Automation level enforcement, non-bypassable M11 QA Veto Gate, YouTube OAuth authorization check, concurrency & weekly limits.
+    - `ResourceGovernor`: Hard $0.00 monthly budget ceiling enforcement, resource usage recording (`GEMINI_TOKENS`, `TTS_CHARS`, `RENDER_SECONDS`, `STORAGE_BYTES`).
+    - `ProductionHealthMonitor`: Heartbeat watchdog (180s stall timeout), bounded idempotent recovery (max 3 retries), diagnostic failure logging.
+    - `ProductionPlanner`: Long-Form (6–10m) & Shorts (30–60s) plan builder, timezone-aware scheduling, 2-hour conflict detection, M13 analytics opportunity synthesis.
+  - [x] Durable Background Worker Queue Handlers (`backend/app/workers/handlers/orchestration.py`):
+    - Registered 4 worker handlers: `WORKFLOW_EXECUTION`, `WORKFLOW_STAGE_DISPATCH`, `SCHEDULED_WORKFLOW_TRIGGER`, `WORKFLOW_RECOVERY`.
+  - [x] FastAPI REST Endpoints:
+    - Mounted 5 routers with 23 endpoints: `/api/v1/workflows`, `/api/v1/workflow-templates`, `/api/v1/automation`, `/api/v1/planning`, `/api/v1/system`.
+  - [x] Frontend Obsidian Dark Command Center & Calendar:
+    - `src/app/automation/page.tsx`: 5-tab Command Center (Overview, Builder, Policies & Safety, Opportunities, Resource Governor & Watchdog).
+    - `src/app/calendar/page.tsx`: Production Calendar with timezone switcher (UTC, EST, PST, GMT, PKT), target cadence tracker, and conflict warnings.
+  - [x] Comprehensive Automated Test Suite:
+    - 21 new dedicated tests across 5 test suites (100% passing in 9.42s):
+      - `tests/test_workflow_engine.py` (4 tests)
+      - `tests/test_automation_policies.py` (4 tests)
+      - `tests/test_production_planner.py` (4 tests)
+      - `tests/test_workflow_health_and_governor.py` (4 tests)
+      - `tests/test_workflow_api_and_security.py` (5 tests)
+    - Full Pytest Suite: **230/230 backend tests PASSED in 126.96s** (100% pass rate).
+    - Frontend checks: **0 TypeScript errors, 0 ESLint warnings, all 27 static routes prerendered in Next.js build**.
+    - Master test runner `.\scripts\test.ps1`: **100% PASSED**.
+  - [x] M14 Acceptance Criteria objectively verified.
+
+- [x] **M15: Final Production Hardening, Deployment & Official Release** (Completed: 2026-11-08)
+  - [x] Task 1: Comprehensive System Audit & Release Planning (`docs/M15-RELEASE-PLAN.md`)
+  - [x] Task 2: 25-Step End-to-End Production Lifecycle Simulation Suite (`backend/tests/test_m15_end_to_end_simulation.py`)
+  - [x] Task 3: Admin Operational Health Dashboard UI (`frontend/src/app/settings/health/page.tsx`, `frontend/src/app/settings/page.tsx`, `frontend/src/config/navigation.ts`)
+  - [x] Task 4: Hardened Production Documentation Suite:
+      - `docs/FINAL-ARCHITECTURE.md` (52 application tables, 23 API routers, persistent worker daemon, lifecycle flow)
+      - `docs/PRODUCTION-DEPLOYMENT.md` (Docker multi-container, persistent worker daemon, Windows dev topology)
+      - `docs/ENVIRONMENT-VARIABLES.md` (Complete matrix of backend and frontend env vars, key rotation guidelines)
+      - `docs/SECURITY-AUDIT.md` (RBAC, BOLA/IDOR, AES-256-GCM tokens, prompt injection boundaries, rate limiting)
+      - `docs/BACKUP-AND-RECOVERY.md` (RPO 1h, RTO 30m, Supabase PITR, pg_dump, disaster recovery runbook)
+      - `docs/OPERATIONS-RUNBOOK.md` (Day-to-day operations, failure triage, worker management, Gemini/YouTube keys)
+      - `docs/TEST-AND-RELEASE-REPORT.md` (231 backend tests, 25 simulation steps, typecheck, lint, build metrics)
+      - `docs/KNOWN-LIMITATIONS.md` (YouTube 10,000 quota limit, Gemini free-tier RPM/RPD, disk capacity, spend governor)
+      - `docs/RELEASE-CHECKLIST.md` (Formal evaluation of Release Gates A through H: all APPROVED)
+      - `.env.example` (Zero exposed secrets, comprehensive placeholders)
+  - [x] Task 5: Master Automated Test Verification Runner:
+      - Full Backend Pytest Suite: **231/231 backend tests PASSED in 206.21s** (100% pass rate).
+      - Full M15 Simulation Suite: **25/25 simulation steps PASSED**.
+      - Frontend TypeScript Typecheck: **0 TypeScript compiler errors (`tsc --noEmit`)**.
+      - Frontend ESLint: **0 ESLint warnings (`next lint`)**.
+      - Next.js Production Build: **28/28 static pages compiled and bundled with 0 errors**.
+      - Master Test Runner `.\scripts\test.ps1`: **100% PASSED with exit code 0**.
+  - [x] Task 6: Independent Code Review & Release Decision (`APPROVED FOR STAGING & PRODUCTION`).
+  - [x] Task 7: 10 Additional Mandatory M15 Release Safeguards Executed & Verified:
+      - Safeguard 1 (Evidence-Based Verification): Every subsystem objectively tested and recorded with commands, exit codes, output summaries, and limitations.
+      - Safeguard 2 (Provider & Model Audit): Comprehensive audit document created (`docs/PROVIDER-AND-MODEL-AUDIT.md`) detailing Gemini (1.5 Flash/Pro), Edge-TTS, Pexels, Pixabay, Imagen 3, and YouTube Data/Analytics APIs with real billing conditions and $0.00 spend governor enforcement.
+      - Safeguard 3 (Secret Hygiene): Full repository and git commit log scan completed. Zero leaked Google API keys, GitHub tokens, or private secrets found.
+      - Safeguard 4 (Safe E2E Simulation): Complete 25-step autonomous production lifecycle executed in isolated test mode (`backend/tests/test_m15_end_to_end_simulation.py`) with zero external API calls or public uploads.
+      - Safeguard 5 (Upload Reconciliation): Interrupted chunk resumption, status queries (HTTP 308), idempotency deduplication, and veto gate enforcement verified (`tests/test_youtube_resumable_uploader.py`, `tests/test_youtube_veto_gate_and_publishing.py`).
+      - Safeguard 6 (Health Dashboard Integrity): Server health probe `/api/v1/health` and UI dashboard `/settings/health` strictly report mock providers and unconfigured OAuth as `Degraded` with disclaimer warnings ("Mock Mode (Offline)").
+      - Safeguard 7 (Backup Restoration): Disaster recovery verified in isolated environment (`tests/test_backup_restoration_evidence.py`) with 100% data fidelity across 6 tables, 100% SHA-256 checksum match across media files, measured RTO of 2.54 ms, and measured RPO of 0.0154 seconds.
+      - Safeguard 8 (Migration Verification): Fresh database installation (`alembic upgrade head`) and upgrade from 0009 to 0010 verified with complete data preservation (`tests/test_migration_verification.py`).
+      - Safeguard 9 (Concurrency & Security): Verified workflow limits, $0.00 spend lock, worker crash recovery, OAuth enforcement, and QA approval invalidation upon artifact modification (`ERR_QA_DRIFT_DETECTED`) in `tests/test_m15_concurrency_and_security.py`.
+      - Safeguard 10 (Final Release Decision): Selected `READY FOR STAGING` with documented pre-production owner action items.
+  - [x] M15 Acceptance Criteria objectively verified (239/239 backend tests passing).
+
+## Recent Verification Records
+- 2026-11-08: Zero-Cost Staging Deployment Master Task Complete: Verified 239/239 pytest tests passing (113.53s), 0 TS errors, 0 ESLint warnings, 28 static Next.js pages compiled into frontend/out. GitHub Pages workflow (.github/workflows/deploy-pages.yml) configured with least-privilege permissions and automatic repository subpath routing. PowerShell staging automation scripts implemented (start-staging-backend.ps1, stop-staging-backend.ps1, start-staging-worker.ps1, stop-staging-worker.ps1). Supabase Free PostgreSQL setup and connection pooling documented. Comprehensive cloud hosting research completed (Google Cloud Run, Render, Fly.io limitations). Final Release Decision: READY FOR LOCAL STAGING (Strictly $0.00/month hosting budget).
+- 2026-11-08: Staging Deployment, Integration Audit & Production Readiness Complete: 239/239 backend pytest tests passing (124.60s), 0 TypeScript errors, 0 ESLint warnings, 28/28 Next.js static routes compiled. Schema reconciled to 52 application tables (+1 alembic_version), provider limits reconciled (Pixabay 100/min burst + 5k/hr, Pexels attribution/AI data policy), containerized orchestration verified (Next.js multi-stage standalone Dockerfile, docker-compose 4 services), 9-subsystem health dashboard with Supabase auth and AbortController, CodeRabbit subagent review remediations applied, Release Gates A-H all PASS, Release Status: READY FOR STAGING.
+- 2026-11-08: M15 Safeguards Verification Complete: 239/239 backend pytest tests passing, 0 TypeScript errors, 0 ESLint warnings, all 10 safeguards empirically verified, release status: READY FOR STAGING.
+- 2026-11-08: Milestone 15 Complete (ALL 15 MILESTONES VERIFIED): 231/231 backend pytest tests passing, 25/25 E2E simulation steps passing, 0 TypeScript errors, 0 ESLint warnings, 28 Next.js static pages prerendered, `scripts/test.ps1` 100% passing.
+- 2026-11-08: Milestone 14 Complete: 230/230 backend pytest tests passing, 0 TypeScript errors, 0 ESLint warnings, 27 Next.js static pages prerendered, `scripts/test.ps1` 100% passing.
+- 2026-11-08: Alembic migrations 0001 through 0010 verified (`alembic upgrade 0009:0010 --sql` clean).
+- 2026-11-08: Milestone 13 Complete: 209/209 backend pytest tests passing, 0 TypeScript errors, 0 ESLint warnings, 27 Next.js static pages prerendered, `scripts/test.ps1` 100% passing.
+- 2026-11-08: Alembic migrations 0001 through 0009 verified.
+- 2026-11-08: Milestone 12 Complete: 192/192 backend pytest tests passing, 0 TypeScript errors, 0 ESLint warnings, 27 Next.js static pages prerendered, `scripts/test.ps1` 100% passing.
+- 2026-11-08: Alembic migrations 0001 through 0008 verified.
+- 2026-11-08: Milestone 11 Complete: 176/176 backend pytest tests passing, 0 TypeScript errors, 0 ESLint warnings, 27 Next.js static pages prerendered, `scripts/test.ps1` 100% passing.
+- 2026-11-08: Alembic migrations 0001 through 0007 verified.
+- 2026-11-08: Milestone 10 Complete: 146/146 backend pytest tests passing, 0 TypeScript errors, 0 ESLint warnings, 27 Next.js static pages prerendered, `scripts/test.ps1` 100% passing.
+- 2026-11-08: Alembic migrations 0001 through 0006 verified.
+- 2026-11-08: Full backend test suite passed 133/133 tests in pytest covering video rendering, subtitle compilation, timeline service, render worker handlers, visual planning, voice, audio, scripts, topics, queue, auth, and models
+- 2026-11-08: Alembic migrations 0001, 0002, 0003, 0004, and 0005 upgrade and downgrade verified
+- 2026-11-08: Frontend TypeScript (0 errors) and ESLint (0 warnings/errors) verified
+- 2026-11-08: Next.js production build verified across all 27 static routes with 0 errors
+- 2026-11-08: Unified master test runner `scripts/test.ps1` completed with exit code 0

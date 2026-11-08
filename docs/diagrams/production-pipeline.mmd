@@ -1,0 +1,60 @@
+flowchart TD
+    %% Creator Studio AI - Production Pipeline & Deterministic Veto Flow
+    
+    subgraph DiscoveryStage["1. Discovery & Concept"]
+        Feeds[Web Feeds & Trends RSS] --> Ingest[Topic Ingestion Engine]
+        Ingest --> ScoreAlg[Opportunity Scoring Algorithm]
+        ScoreAlg --> ConceptBrief[Video Concept Brief]
+    end
+
+    subgraph ScriptingStage["2. Scripting & Verification"]
+        ConceptBrief --> GeminiScript[Gemini 1.5 Pro Scriptwriter]
+        GeminiScript --> ParseScenes[Partition Scenes & Directives]
+        ParseScenes --> ClaimExtract[Extract Numerical / Tech Claims]
+        ClaimExtract --> SearchVerify[Web Search API Claim Evaluation]
+        SearchVerify --> FactScore{Confidence >= 0.80?}
+        FactScore -- No --> TargetedRewrite[Targeted Gemini Rewrite Prompt]
+        TargetedRewrite --> SearchVerify
+        FactScore -- Yes --> LockedScript[Locked Script JSON]
+    end
+
+    subgraph MediaSynthesis["3. Media & Audio Synthesis"]
+        LockedScript --> LocalTTS[Local Neural TTS Engine (Edge-TTS)]
+        LocalTTS --> Loudnorm[EBU R128 Audio Normalization (-14 LUFS)]
+        Loudnorm --> Timestamps[Extract Word-Level Timestamps]
+        
+        LockedScript --> PlaywrightCapture[Playwright Headless Browser Capture]
+        PlaywrightCapture --> CodeHighlight[Syntax-Highlighted Code Animations]
+        CodeHighlight --> MediaAssets[Curated Media Assets & B-Roll]
+    end
+
+    subgraph AssemblyAndQA["4. Procedural Assembly & QA Gate"]
+        Timestamps --> SubtitleGen[Kinetic ASS Subtitle Generator]
+        MediaAssets --> FFmpegGraph[FFmpeg Multi-Track Composite Graph]
+        Loudnorm --> FFmpegGraph
+        SubtitleGen --> FFmpegGraph
+        FFmpegGraph --> MasterMP4[Master 1080p MP4 Render]
+        
+        MasterMP4 --> PillowThumb[Pillow 1280x720 3-Variant Thumbnail]
+        MasterMP4 --> SEOMetadata[Title, Chaptered Description & Tags]
+        
+        MasterMP4 --> QAGate{14 Deterministic Checks Passed?}
+        QAGate -- Black Frames > 0.25s --> VETO[VETO: Set State NEEDS_ATTENTION]
+        QAGate -- Audio Silence > 1.5s --> VETO
+        QAGate -- Loudness != -14 LUFS --> VETO
+        QAGate -- Claims < 100% Verified --> VETO
+        QAGate -- Repetition > 70% --> VETO
+    end
+
+    subgraph PublishingStage["5. Publishing & Analytics"]
+        QAGate -- 100% Passed --> ResumableUpload[YouTube Resumable Upload Worker]
+        PillowThumb --> ResumableUpload
+        SEOMetadata --> ResumableUpload
+        ResumableUpload --> SetScheduled[Set Scheduled Publication Time]
+        SetScheduled --> IngestAnalytics[Poll Views, Retention & CTR at +24h/+48h/+7d]
+        IngestAnalytics --> FeedbackLoop[Update Channel Topic Scoring Weights]
+    end
+
+    VETO --> ManualCorrection[Creator Review / Targeted Regeneration]
+    ManualCorrection --> FFmpegGraph
+    FeedbackLoop --> Ingest

@@ -1,0 +1,34 @@
+stateDiagram-v2
+    %% Creator Studio AI - Background Job Lifecycle & Fault Tolerance
+    
+    [*] --> QUEUED : Enqueued via API / Scheduler with Idempotency Key
+    
+    state ClaimLock <<choice>>
+    QUEUED --> ClaimLock : Worker Poll (FOR UPDATE SKIP LOCKED)
+    ClaimLock --> PROCESSING : Atomically Claimed by Worker PID
+    ClaimLock --> QUEUED : Contention / Row Locked by Another Worker
+    
+    state ProcessingState {
+        [*] --> Executing : Start Stage Task
+        Executing --> Heartbeat : Interval Timer (15s)
+        Heartbeat --> Executing : Update heartbeat_at in DB
+        Executing --> ProgressUpdate : Worker Progress (0% to 100%)
+        ProgressUpdate --> Executing : Push SSE to Frontend
+    }
+    
+    PROCESSING --> COMPLETED : Task Success & Output Saved
+    PROCESSING --> FAILED : Exception / Timeout / Watchdog Kill
+    
+    state RetryEvaluation <<choice>>
+    FAILED --> RetryEvaluation : Check attempt_count vs max_retries
+    RetryEvaluation --> RETRY_DELAY : attempt_count < 3
+    RetryEvaluation --> DEAD_LETTER : attempt_count >= 3
+    
+    RETRY_DELAY --> QUEUED : Exponential Backoff Elapsed (2^n * 30s)
+    
+    DEAD_LETTER --> NEEDS_MANUAL_REVIEW : Diagnostic Log Saved & Alert Dispatched
+    NEEDS_MANUAL_REVIEW --> QUEUED : Manual Admin Re-trigger
+    NEEDS_MANUAL_REVIEW --> CANCELLED : Discarded by User
+    
+    COMPLETED --> [*]
+    CANCELLED --> [*]

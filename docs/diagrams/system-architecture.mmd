@@ -1,0 +1,69 @@
+graph TD
+    %% Creator Studio AI - System Architecture Diagram
+    
+    subgraph ClientLayer["Client Layer (Frontend)"]
+        NextWeb["Next.js 15 App Router<br/>(React 19 / TypeScript / Tailwind / shadcn)"]
+        MobileClient["Mobile Responsive Web Viewport"]
+    end
+
+    subgraph EdgeGateway["Edge & API Gateway"]
+        VercelEdge["Vercel Edge Hosting"]
+        FastAPIGateway["FastAPI Async Gateway (Python 3.11+)<br/>Rate Limiting / JWT Auth / Pydantic v2"]
+    end
+
+    subgraph DataStorage["Data & State Persistence"]
+        PostgresDB[("PostgreSQL 16 (via Supabase)<br/>21 Relational Tables")]
+        JobQueueTable[("Durable Jobs Queue Table<br/>FOR UPDATE SKIP LOCKED")]
+        CloudflareR2[("Cloudflare R2 Object Storage<br/>(S3-Compatible / $0 Egress)")]
+        LocalDisk[("Local SSD Working Cache<br/>(Scratch Captures & WAV Stems)")]
+    end
+
+    subgraph PersistentWorkers["Persistent Worker Processing Pool"]
+        WorkerMaster["Worker Orchestrator Daemon"]
+        WorkerResearch["Research & Topic Worker"]
+        WorkerScript["Script & Fact-Checking Worker"]
+        WorkerVoice["Local Voice Synthesis Worker (Edge-TTS / Kokoro)"]
+        WorkerCapture["Headless Media Capture Worker (Playwright)"]
+        WorkerRender["FFmpeg Assembly & Subtitle Burner Worker"]
+        WorkerQA["Deterministic QA Audit Worker (14 Veto Checks)"]
+        WorkerUpload["YouTube Resumable Publishing Worker"]
+        WorkerAnalytics["YouTube Analytics Polling Worker"]
+    end
+
+    subgraph ExternalIntegrations["External Provider Ecosystem"]
+        GeminiAPI["Google Gemini 1.5 Flash / Pro API<br/>(Quota-Tracked & Free-Tier Guardrailed)"]
+        SearchAPI["Web Search Provider (DuckDuckGo / Tavily)"]
+        YouTubeAPI["YouTube Data API v3 & Analytics API<br/>(AES-256 Encrypted OAuth)"]
+        PexelsAPI["Pexels / Creative Commons Media Search"]
+    end
+
+    NextWeb -->|HTTPS / REST / SSE| FastAPIGateway
+    MobileClient -->|HTTPS / REST / SSE| FastAPIGateway
+    NextWeb -.->|Static Assets| VercelEdge
+
+    FastAPIGateway -->|JWT Validation & CRUD| PostgresDB
+    FastAPIGateway -->|Atomic Task Enqueue| JobQueueTable
+
+    WorkerMaster -->|Poll & Claim Locked Tasks| JobQueueTable
+    WorkerMaster --> WorkerResearch
+    WorkerMaster --> WorkerScript
+    WorkerMaster --> WorkerVoice
+    WorkerMaster --> WorkerCapture
+    WorkerMaster --> WorkerRender
+    WorkerMaster --> WorkerQA
+    WorkerMaster --> WorkerUpload
+    WorkerMaster --> WorkerAnalytics
+
+    WorkerResearch --> GeminiAPI
+    WorkerResearch --> SearchAPI
+    WorkerScript --> GeminiAPI
+    WorkerScript --> SearchAPI
+    WorkerVoice --> LocalDisk
+    WorkerCapture --> LocalDisk
+    WorkerRender --> LocalDisk
+    WorkerRender --> CloudflareR2
+    WorkerQA --> LocalDisk
+    WorkerUpload --> CloudflareR2
+    WorkerUpload --> YouTubeAPI
+    WorkerAnalytics --> YouTubeAPI
+    WorkerCapture --> PexelsAPI

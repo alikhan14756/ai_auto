@@ -1,0 +1,129 @@
+version: "3.9"
+
+services:
+  # ----------------------------------------------------------------------------
+  # PostgreSQL Database with persistent volume and health check
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: creator_studio_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-creator_studio_ai}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-creator_studio_ai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - creator_studio_net
+
+  # ----------------------------------------------------------------------------
+  # FastAPI Backend API Server
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: creator_studio_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-staging}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-creator_studio_ai}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-creator_studio_ai}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-insecure-staging-secret-key-must-override-in-prod}
+      APP_MASTER_ENCRYPTION_KEY: ${APP_MASTER_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MAX_MONTHLY_SPEND_USD: ${MAX_MONTHLY_SPEND_USD:-0.00}
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID:-}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET:-}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+    volumes:
+      - app_storage:/app/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - creator_studio_net
+
+  # ----------------------------------------------------------------------------
+  # Background Worker Daemon (Durable Queue Executor)
+  # ----------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: creator_studio_worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.workers.runner"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-staging}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-creator_studio_ai}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-creator_studio_ai}
+      WORKER_ID: ${WORKER_ID:-staging-worker-01}
+      WORKER_POLL_INTERVAL: ${WORKER_POLL_INTERVAL:-2.0}
+      WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-insecure-staging-secret-key-must-override-in-prod}
+      APP_MASTER_ENCRYPTION_KEY: ${APP_MASTER_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MAX_MONTHLY_SPEND_USD: ${MAX_MONTHLY_SPEND_USD:-0.00}
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID:-}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET:-}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+    volumes:
+      - app_storage:/app/storage
+    networks:
+      - creator_studio_net
+
+  # ----------------------------------------------------------------------------
+  # Next.js 15 Frontend Dashboard
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: creator_studio_frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      INTERNAL_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    networks:
+      - creator_studio_net
+
+volumes:
+  postgres_data:
+  app_storage:
+
+networks:
+  creator_studio_net:
+    driver: bridge

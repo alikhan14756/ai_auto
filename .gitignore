@@ -1,0 +1,106 @@
+# Creator Studio AI - Git Ignore Specification
+
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Environment & Secrets (NEVER COMMIT)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.cert
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node & Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+.npm
+*.tsbuildinfo
+next-env.d.ts
+
+# Storage & Temporary Media Working Dirs
+storage/audio/*
+!storage/audio/.gitkeep
+storage/captures/*
+!storage/captures/.gitkeep
+storage/renders/*
+!storage/renders/.gitkeep
+storage/thumbnails/*
+!storage/thumbnails/.gitkeep
+storage/scratch/*
+!storage/scratch/.gitkeep
+temp/
+tmp/
+*.mp4
+*.wav
+*.mp3
+*.m4a
+*.ass
+*.srt
+
+# IDEs & Editors
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Exclude runtime-generated media and user uploads
+/backend/storage/**
+!/backend/storage/**/
+/storage/**
+!/storage/**/
+!/storage/**/.gitkeep

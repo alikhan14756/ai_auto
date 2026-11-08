@@ -1,0 +1,51 @@
+graph TD
+    %% Creator Studio AI - Application Navigation & User Journey
+    
+    Start([User Visits Application]) --> AuthCheck{Session Valid?}
+    
+    AuthCheck -- No --> LoginPage["/login (Supabase Magic Link / GitHub)"]
+    LoginPage --> AuthCheck
+    
+    AuthCheck -- Yes --> ChannelCheck{YouTube Channel Connected?}
+    ChannelCheck -- No --> OnboardingWizard["/onboarding (Connect YouTube OAuth + API Keys)"]
+    OnboardingWizard --> Dashboard
+    
+    ChannelCheck -- Yes --> Dashboard["/dashboard (Executive Mission Control)"]
+
+    subgraph PrimaryNavigation["Primary Navigation Outlets"]
+        Dashboard --> NavTopics["/topics (Research Hub)"]
+        Dashboard --> NavProduction["/production (Pipeline Kanban)"]
+        Dashboard --> NavLibrary["/library (Media Asset Store)"]
+        Dashboard --> NavCalendar["/calendar (Publishing Schedule)"]
+        Dashboard --> NavAnalytics["/analytics (YouTube Performance)"]
+        Dashboard --> NavSettings["/settings (Configuration Hub)"]
+    end
+
+    subgraph ProjectCreation["Topic to Project Lifecycle"]
+        NavTopics --> TopicDetail["/topics/[id] (Opportunity Deep Dive)"]
+        TopicDetail --> ActionPromote["Promote Topic to VideoProject"]
+        ActionPromote --> ProjectHub["/projects/[id] (Project Studio Hub)"]
+    end
+
+    subgraph StudioWorkspaces["Granular Production Workspaces"]
+        ProjectHub --> ScriptStudio["/projects/[id]/script (Script Editor & Teleprompter)"]
+        ScriptStudio --> FactCheckMatrix["/projects/[id]/fact-check (Claim Matrix)"]
+        FactCheckMatrix --> VoiceStudio["/projects/[id]/voice (Audio Mixer & Waveforms)"]
+        VoiceStudio --> SceneEditor["/projects/[id]/scenes (Storyboard & Visual Directives)"]
+        SceneEditor --> PreviewQA["/projects/[id]/preview (Video Player & 14-Point QA)"]
+        PreviewQA --> ThumbnailStudio["/projects/[id]/thumbnail (Cover Studio & SEO)"]
+    end
+
+    subgraph SettingsSubsystem["System & Channel Settings"]
+        NavSettings --> SetChannel["/settings/channel (Branding & Defaults)"]
+        NavSettings --> SetProviders["/settings/providers (Gemini, TTS & Search Keys)"]
+        NavSettings --> SetUsage["/settings/usage (Token Meters & $0 Hard Caps)"]
+        NavSettings --> SetAutomation["/settings/automation (Weekly Cadence Rules)"]
+        NavSettings --> SetHealth["/settings/logs (Worker Diagnostics & Heartbeats)"]
+    end
+
+    ThumbnailStudio --> PublishAction{QA Checks Passed?}
+    PublishAction -- Yes --> ScheduleUpload["Schedule / Upload to YouTube"]
+    ScheduleUpload --> NavCalendar
+    PublishAction -- No --> FlagAttention["Flag for Attention & Re-render"]
+    FlagAttention --> ProjectHub

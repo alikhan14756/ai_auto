@@ -1,0 +1,94 @@
+erDiagram
+    %% Creator Studio AI - Database Entity Relationships (PostgreSQL 16)
+    
+    User ||--o{ Channel : "owns (1:N)"
+    Channel ||--|| ChannelSettings : "configures (1:1)"
+    Channel ||--o{ Topic : "discovers (1:N)"
+    Channel ||--o{ VideoProject : "produces (1:N)"
+    Channel ||--o{ AutomationJob : "schedules (1:N)"
+    Channel ||--o{ ProviderUsage : "meters (1:N)"
+    
+    Topic ||--o{ ResearchSource : "cites (1:N)"
+    Topic ||--o| VideoProject : "originates (1:1)"
+    
+    VideoProject ||--o{ Script : "versions (1:N)"
+    Script ||--o{ ScriptClaim : "asserts (1:N)"
+    
+    VideoProject ||--o{ Scene : "sequences (1:N)"
+    Scene ||--o{ MediaAsset : "displays (1:N)"
+    Scene ||--o| Voiceover : "narrates (1:1)"
+    
+    VideoProject ||--o{ Thumbnail : "generates (1:3)"
+    VideoProject ||--o{ RenderJob : "renders (1:N)"
+    VideoProject ||--o{ QualityReport : "audits (1:N)"
+    VideoProject ||--o{ PublishingJob : "publishes (1:N)"
+    
+    PublishingJob ||--o| YouTubeVideo : "creates (1:1)"
+    YouTubeVideo ||--o{ AnalyticsSnapshot : "tracks (1:N)"
+    
+    User ||--o{ PromptTemplate : "customizes (1:N)"
+    User ||--o{ AuditLog : "logs (1:N)"
+
+    User {
+        uuid id PK
+        varchar supabase_user_id UK
+        varchar email UK
+        varchar role
+    }
+
+    Channel {
+        uuid id PK
+        uuid user_id FK
+        varchar youtube_channel_id UK
+        text oauth_refresh_token_encrypted
+        bigint subscriber_count
+    }
+
+    VideoProject {
+        uuid id PK
+        uuid channel_id FK
+        uuid topic_id FK
+        varchar title
+        varchar format
+        varchar state
+        int target_duration_seconds
+    }
+
+    Script {
+        uuid id PK
+        uuid project_id FK
+        int version
+        text full_text
+        int word_count
+        boolean is_locked
+    }
+
+    ScriptClaim {
+        uuid id PK
+        uuid script_id FK
+        text claim_text
+        varchar claim_type
+        boolean is_verified
+        numeric confidence_score
+        text citation_url
+    }
+
+    Scene {
+        uuid id PK
+        uuid project_id FK
+        int scene_order
+        text narration_text
+        varchar visual_archetype
+        numeric duration_seconds
+    }
+
+    AutomationJob {
+        uuid id PK
+        uuid channel_id FK
+        varchar job_type
+        varchar idempotency_key UK
+        varchar status
+        int priority
+        timestamp scheduled_at
+        varchar locked_by
+    }
