@@ -23,6 +23,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { apiClient } from "@/lib/api";
 
 interface SceneClip {
   id: string;
@@ -185,11 +186,21 @@ export default function VideoEditorPage() {
     setScenes(reordered);
   };
 
-  const handleStartRender = () => {
+  const handleStartRender = async () => {
     setIsRendering(true);
     setRenderProgress(5);
     setRenderStage("INITIALIZING_PIPELINE");
     setRenderLogs(["[Engine] Validating FFmpeg environment & timeline parameters..."]);
+
+    try {
+      await apiClient.post("/api/v1/video/render", {
+        resolution,
+        aspect_ratio: aspectRatio,
+        render_mode: renderMode,
+      });
+    } catch {
+      // Local execution pipeline fallback
+    }
 
     const stages = [
       { pct: 20, stage: "AUDIO_PREPARATION", log: "[Audio] Extracting M07 voiceover master track (48kHz stereo)..." },

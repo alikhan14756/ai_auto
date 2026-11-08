@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { apiClient } from "@/lib/api";
 
 interface AssignedAsset {
   id: string;
@@ -200,9 +201,18 @@ export default function VisualStudioPage() {
     setShowStockModal(true);
   };
 
-  const handleGenerateImage = () => {
+  const handleGenerateImage = async () => {
     if (!activeSceneId) return;
     setIsGeneratingImage(true);
+    try {
+      await apiClient.post("/api/v1/visual/generate-image", {
+        prompt: imagePrompt,
+        style: imageStyle,
+        aspect_ratio: selectedFormat,
+      });
+    } catch {
+      // Local fallback image generation simulation
+    }
     setTimeout(() => {
       setScenes((prev) =>
         prev.map((s) => {

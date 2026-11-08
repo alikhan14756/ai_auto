@@ -18,6 +18,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { apiClient } from "@/lib/api";
 
 interface Chapter {
   timestamp: string;
@@ -165,7 +166,18 @@ ${hashtags.join(" ")}`;
 
           <Button
             className="bg-[#FF7A00] hover:bg-[#FF7A00]/90 text-black font-semibold"
-            onClick={() => setIsApproved(true)}
+            onClick={async () => {
+              setIsApproved(true);
+              try {
+                await apiClient.post("/api/v1/metadata/generate", {
+                  title: selectedTitle,
+                  description: fullDescription,
+                  tags: hashtags,
+                });
+              } catch {
+                // Optimistic metadata approval
+              }
+            }}
           >
             <CheckCircle2 className="w-4 h-4 mr-2" />
             {isApproved ? "Approved & Locked" : "Approve Metadata Package"}

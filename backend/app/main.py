@@ -34,12 +34,24 @@ app = FastAPI(
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     """Inject production security headers onto all outgoing HTTP responses."""
+    if request.method == "OPTIONS" and "access-control-request-private-network" in request.headers:
+        from fastapi import Response
+        res = Response(status_code=204)
+        res.headers["Access-Control-Allow-Private-Network"] = "true"
+        res.headers["Access-Control-Allow-Origin"] = request.headers.get("origin", "*")
+        res.headers["Access-Control-Allow-Methods"] = "*"
+        res.headers["Access-Control-Allow-Headers"] = "*"
+        res.headers["Access-Control-Allow-Credentials"] = "true"
+        return res
+
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    if "access-control-request-private-network" in request.headers:
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
     if settings.is_production:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response

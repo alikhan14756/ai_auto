@@ -378,13 +378,32 @@ async def reorder_timeline_scenes(
 
 
 @router.post("/renders", response_model=RenderJobResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/render", response_model=RenderJobResponse, status_code=status.HTTP_202_ACCEPTED)
 async def trigger_render(
     request: RenderTriggerRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Enqueue a video assembly and rendering job onto the persistent queue."""
-    timeline = await _verify_timeline_ownership(db, request.timeline_id, current_user)
+    timeline_id = request.timeline_id
+    if not timeline_id:
+        stmt = (
+            select(VideoTimeline)
+            .join(VideoProject, VideoTimeline.project_id == VideoProject.id)
+            .join(Channel, VideoProject.channel_id == Channel.id)
+        )
+        if current_user.role != "SUPER_ADMIN":
+            stmt = stmt.where(Channel.user_id == current_user.id)
+        stmt = stmt.order_by(VideoTimeline.created_at.desc())
+        res = await db.execute(stmt)
+        timeline = res.scalars().first()
+        if not timeline:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No video timeline found. Please create a project and timeline before rendering.",
+            )
+    else:
+        timeline = await _verify_timeline_ownership(db, timeline_id, current_user)
 
     # Fetch project and channel
     proj_stmt = (
@@ -397,6 +416,9 @@ async def trigger_render(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
 
+    chosen_mode = request.mode or request.render_mode or settings.VIDEO_RENDERER_DEFAULT_MODE
+    aspect = request.aspect_ratio or timeline.aspect_ratio
+
     render_job = RenderJob(
         id=uuid.uuid4(),
         project_id=project.id,
@@ -405,8 +427,8 @@ async def trigger_render(
         video_width=timeline.width,
         video_height=timeline.height,
         fps=timeline.fps,
-        aspect_ratio=timeline.aspect_ratio,
-        renderer_mode=request.mode or settings.VIDEO_RENDERER_DEFAULT_MODE,
+        aspect_ratio=aspect,
+        renderer_mode=chosen_mode,
         current_stage="QUEUED",
         progress_percentage=0,
         status="QUEUED",
@@ -425,7 +447,7 @@ async def trigger_render(
             "timeline_id": str(timeline.id),
             "project_id": str(project.id),
             "user_id": str(current_user.id),
-            "mode": request.mode or settings.VIDEO_RENDERER_DEFAULT_MODE,
+            "mode": chosen_mode,
         },
         priority=10,
         idempotency_key=f"render_{render_job.id}",

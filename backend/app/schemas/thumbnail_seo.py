@@ -25,8 +25,10 @@ class ThumbnailConceptItem(BaseModel):
 
 
 class ThumbnailConceptGenerateRequest(BaseModel):
-    project_id: UUID
+    project_id: Optional[UUID] = None
     custom_guidance: Optional[str] = None
+    headline: Optional[str] = None
+    style_preset: Optional[str] = None
 
 
 class ThumbnailComposeRequest(BaseModel):

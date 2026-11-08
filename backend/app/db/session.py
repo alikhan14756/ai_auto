@@ -13,6 +13,9 @@ Base = declarative_base()
 # Async Engine for application runtime
 # Using NullPool or standard pooling based on environment
 connect_args = {}
+if "supabase.co" in settings.DATABASE_URL or "supabase.com" in settings.DATABASE_URL:
+    connect_args["ssl"] = "require"
+
 if "6543" in settings.DATABASE_URL or "pooler.supabase.com" in settings.DATABASE_URL:
     # Transaction poolers (e.g. PgBouncer on port 6543) require disabling prepared statement cache in asyncpg
     connect_args["statement_cache_size"] = 0

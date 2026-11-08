@@ -1,8 +1,8 @@
 """FastAPI REST API router for Autonomous QA and Veto Gate."""
 
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,24 +31,44 @@ async def trigger_qa_run(
     current_user: User = Depends(get_current_user),
 ):
     """Trigger an autonomous QA evaluation run for a video project and publication package."""
+    target_project_id = req.project_id
+    if not target_project_id:
+        from app.models.project import VideoProject
+        from app.models.channel import Channel
+        stmt = (
+            select(VideoProject)
+            .join(Channel, VideoProject.channel_id == Channel.id)
+        )
+        if current_user.role != "SUPER_ADMIN":
+            stmt = stmt.where(Channel.user_id == current_user.id)
+        stmt = stmt.order_by(VideoProject.created_at.desc())
+        res = await db.execute(stmt)
+        proj = res.scalars().first()
+        if not proj:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No project found. Please provide a valid project_id.",
+            )
+        target_project_id = proj.id
+
     try:
         qa_run = await QAService.create_qa_run(
             db=db,
-            project_id=req.project_id,
+            project_id=target_project_id,
             package_id=req.publication_package_id,
             user=current_user,
         )
 
         if req.run_async:
             # Enqueue to durable worker queue
-            project = await QAService.verify_project_access(db, req.project_id, current_user)
+            project = await QAService.verify_project_access(db, target_project_id, current_user)
             queue_service = JobQueueService(db)
             await queue_service.enqueue_job(
                 channel_id=project.channel_id,
                 job_type="QA_PACKAGE_INSPECTION",
                 payload={
                     "run_id": str(qa_run.id),
-                    "project_id": str(req.project_id),
+                    "project_id": str(target_project_id),
                     "package_id": str(req.publication_package_id) if req.publication_package_id else None,
                     "target_categories": req.target_categories,
                 },
@@ -157,6 +177,38 @@ async def authorize_exception(
             user=current_user,
             reason=req.reason,
             expires_at=req.expires_at,
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/exceptions", response_model=QAExceptionResponse)
+async def create_generic_qa_exception(
+    payload: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Authorize an administrative override exception by generic JSON payload."""
+    finding_id = payload.get("finding_id")
+    if not finding_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing finding_id")
+    try:
+        fid = UUID(str(finding_id))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid finding_id UUID format")
+
+    reason = payload.get("justification") or payload.get("reason") or "Administrative exception granted"
+    expires_at = payload.get("expires_at")
+
+    try:
+        return await QAService.authorize_exception(
+            db=db,
+            finding_id=fid,
+            user=current_user,
+            reason=reason,
+            expires_at=expires_at,
         )
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

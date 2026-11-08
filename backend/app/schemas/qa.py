@@ -93,7 +93,7 @@ class QARunResponse(BaseModel):
 
 
 class QARunTriggerRequest(BaseModel):
-    project_id: UUID
+    project_id: Optional[UUID] = None
     publication_package_id: Optional[UUID] = None
     target_categories: Optional[List[str]] = None
     run_async: bool = False

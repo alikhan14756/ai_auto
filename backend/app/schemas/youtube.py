@@ -27,11 +27,13 @@ class YouTubeConnectionStatusResponse(BaseModel):
 
 class PublicationCreateRequest(BaseModel):
     """Payload to initiate a verified YouTube publication."""
-    project_id: uuid.UUID
-    channel_id: uuid.UUID
-    publication_package_id: uuid.UUID
+    project_id: Optional[uuid.UUID] = None
+    channel_id: Optional[uuid.UUID] = None
+    publication_package_id: Optional[uuid.UUID] = None
     privacy_status: str = Field(default="unlisted", description="private, unlisted, or public")
+    privacy: Optional[str] = Field(default=None, description="Alias for privacy_status")
     scheduled_publish_time: Optional[datetime] = Field(default=None, description="ISO-8601 UTC timestamp")
+    scheduled_at: Optional[datetime] = Field(default=None, description="Alias for scheduled_publish_time")
     self_declared_made_for_kids: bool = Field(default=False)
     synthetic_media_declared: bool = Field(default=True)
     idempotency_key: Optional[str] = Field(default=None, max_length=128)

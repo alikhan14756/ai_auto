@@ -100,9 +100,12 @@ class VideoTimelineResponse(BaseModel):
 
 
 class RenderTriggerRequest(BaseModel):
-    timeline_id: UUID
+    timeline_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
     mode: Optional[str] = Field(None, description="'auto', 'ffmpeg', or 'mock'")
+    render_mode: Optional[str] = Field(None, description="Alias for mode")
     resolution: Optional[str] = Field("1080p", description="Resolution name")
+    aspect_ratio: Optional[str] = Field(None, description="'16:9' or '9:16'")
 
 
 class RenderJobResponse(BaseModel):

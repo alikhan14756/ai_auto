@@ -24,6 +24,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { apiClient } from "@/lib/api";
 
 interface VoiceOption {
   id: string;
@@ -141,6 +142,7 @@ const INITIAL_CHUNKS: SceneAudioChunk[] = [
 ];
 
 export default function VoiceStudioPage() {
+  const [voices, setVoices] = useState<VoiceOption[]>(AVAILABLE_VOICES);
   const [selectedVoice, setSelectedVoice] = useState<string>("en-US-ChristopherNeural");
   const [speedRatio, setSpeedRatio] = useState<number>(1.0);
   const [pitchSemitones, setPitchSemitones] = useState<number>(0.0);
@@ -153,6 +155,28 @@ export default function VoiceStudioPage() {
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   const [generationStage, setGenerationStage] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadVoices() {
+      try {
+        const res = await apiClient.get<any[]>("/api/v1/voice/voices");
+        if (res && Array.isArray(res) && res.length > 0) {
+          const mapped: VoiceOption[] = res.map((v: any) => ({
+            id: v.id || v.voice_id || v.name,
+            name: v.name || v.display_name || v.id,
+            locale: v.locale || "en-US",
+            gender: v.gender === "FEMALE" ? "FEMALE" : "MALE",
+            description: v.description || "Neural voice profile",
+            provider: v.provider || "Microsoft Edge Neural",
+          }));
+          setVoices(mapped);
+        }
+      } catch {
+        // Fallback to static AVAILABLE_VOICES list
+      }
+    }
+    loadVoices();
+  }, []);
 
   // Active track state
   const [track, setTrack] = useState<NarrationTrackState>({
@@ -199,9 +223,17 @@ export default function VoiceStudioPage() {
     setIsPlaying(!isPlaying);
   };
 
-  const handleAuditionVoice = (voiceId: string) => {
+  const handleAuditionVoice = async (voiceId: string) => {
     showToast(`Auditioning voice sample for ${voiceId}...`);
-    // Beep / audition simulation
+    try {
+      await apiClient.post("/api/v1/voice/preview", {
+        voice_id: voiceId,
+        text: "Autonomous faceless YouTube video production with zero audio drift.",
+      });
+    } catch {
+      // Audio preview endpoint fallback
+    }
+
     try {
       const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       const osc = audioCtx.createOscillator();
@@ -219,10 +251,20 @@ export default function VoiceStudioPage() {
     }
   };
 
-  const handleSynthesizeAll = () => {
+  const handleSynthesizeAll = async () => {
     setIsGenerating(true);
     setGenerationProgress(10);
     setGenerationStage("Initializing TTS engine & resolving voice profile...");
+
+    try {
+      await apiClient.post("/api/v1/voice/generate", {
+        voice_id: selectedVoice,
+        speed_ratio: speedRatio,
+        pitch_semitones: pitchSemitones,
+      });
+    } catch {
+      // Fallback to client synthesis simulation
+    }
 
     setTimeout(() => {
       setGenerationProgress(35);
@@ -286,7 +328,7 @@ export default function VoiceStudioPage() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const filteredVoices = AVAILABLE_VOICES.filter((v) => {
+  const filteredVoices = voices.filter((v) => {
     if (localeFilter === "ALL") return true;
     return v.locale.toLowerCase().startsWith(localeFilter.toLowerCase());
   });

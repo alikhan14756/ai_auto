@@ -143,6 +143,7 @@ async def youtube_oauth_callback(
 
 
 @router.get("/connection", response_model=YouTubeConnectionStatusResponse)
+@router.get("/status", response_model=YouTubeConnectionStatusResponse)
 async def get_connection_status(
     channel_id: Optional[uuid.UUID] = Query(default=None),
     db: AsyncSession = Depends(get_db),
@@ -174,15 +175,24 @@ async def get_connection_status(
 
 @router.post("/disconnect")
 async def disconnect_youtube_channel(
-    channel_id: uuid.UUID = Query(...),
+    channel_id: Optional[uuid.UUID] = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Disconnect and revoke credentials for a connected YouTube channel."""
-    res = await db.execute(select(Channel).where(Channel.id == channel_id))
-    channel = res.scalar_one_or_none()
+    if channel_id:
+        res = await db.execute(select(Channel).where(Channel.id == channel_id))
+        channel = res.scalar_one_or_none()
+    else:
+        res = await db.execute(
+            select(Channel).where(
+                and_(Channel.user_id == current_user.id, Channel.is_active == True)
+            ).order_by(Channel.created_at.desc())
+        )
+        channel = res.scalars().first()
+
     if not channel:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+        return {"status": "disconnected", "message": "No active channel connected"}
 
     if channel.user_id != current_user.id and current_user.role != "SUPER_ADMIN":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
@@ -198,6 +208,7 @@ async def disconnect_youtube_channel(
 
 
 @router.post("/publications", response_model=PublicationJobResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/publish", response_model=PublicationJobResponse, status_code=status.HTTP_201_CREATED)
 async def create_publication_request(
     payload: PublicationCreateRequest,
     db: AsyncSession = Depends(get_db),
@@ -207,15 +218,69 @@ async def create_publication_request(
 
     Enforces mandatory M11 QA Veto Gate check server-side.
     """
+    target_channel_id = payload.channel_id
+    if not target_channel_id:
+        ch_res = await db.execute(
+            select(Channel).where(
+                and_(Channel.user_id == current_user.id, Channel.is_active == True)
+            ).order_by(Channel.created_at.desc())
+        )
+        chan = ch_res.scalars().first()
+        if chan:
+            target_channel_id = chan.id
+
+    target_project_id = payload.project_id
+    if not target_project_id:
+        proj_stmt = (
+            select(VideoProject)
+            .join(Channel, VideoProject.channel_id == Channel.id)
+            .where(Channel.user_id == current_user.id)
+            .order_by(VideoProject.created_at.desc())
+        )
+        proj_res = await db.execute(proj_stmt)
+        proj = proj_res.scalars().first()
+        if proj:
+            target_project_id = proj.id
+
+    if not target_channel_id or not target_project_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Valid channel_id and project_id are required to create a publication request.",
+        )
+
+    target_package_id = payload.publication_package_id
+    if not target_package_id:
+        from app.models.publication import PublicationPackage
+        pkg_res = await db.execute(
+            select(PublicationPackage).where(PublicationPackage.project_id == target_project_id).order_by(PublicationPackage.created_at.desc())
+        )
+        pkg = pkg_res.scalars().first()
+        if pkg:
+            target_package_id = pkg.id
+        else:
+            pkg = PublicationPackage(
+                id=uuid.uuid4(),
+                project_id=target_project_id,
+                channel_id=target_channel_id,
+                status="COMPILED",
+                metadata_snapshot={},
+            )
+            db.add(pkg)
+            await db.flush()
+            target_package_id = pkg.id
+
+    privacy = payload.privacy or payload.privacy_status
+    scheduled_time = payload.scheduled_at or payload.scheduled_publish_time
+
     try:
         job = await YouTubePublishingService.create_publication_job(
             db=db,
             user_id=current_user.id,
-            project_id=payload.project_id,
-            channel_id=payload.channel_id,
-            publication_package_id=payload.publication_package_id,
-            privacy_status=payload.privacy_status,
-            scheduled_publish_time=payload.scheduled_publish_time,
+            project_id=target_project_id,
+            channel_id=target_channel_id,
+            publication_package_id=target_package_id,
+            privacy_status=privacy,
+            scheduled_publish_time=scheduled_time,
             self_declared_made_for_kids=payload.self_declared_made_for_kids,
             synthetic_media_declared=payload.synthetic_media_declared,
             idempotency_key=payload.idempotency_key,

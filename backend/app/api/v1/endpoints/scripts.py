@@ -1,8 +1,8 @@
 """Video Script Generation, Revision, and Fact-Checking REST API endpoints."""
 
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -147,19 +147,31 @@ async def generate_script_outline(
 
 @router.get("", response_model=List[ScriptResponse])
 async def list_scripts_for_project(
-    project_id: UUID = Query(..., description="Target VideoProject ID"),
+    project_id: Optional[UUID] = Query(None, description="Target VideoProject ID"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Retrieve version history of scripts for a project."""
-    await _verify_project_access(project_id, current_user, db)
-
-    stmt = (
-        select(Script)
-        .options(selectinload(Script.claims))
-        .where(Script.project_id == project_id)
-        .order_by(Script.version.desc())
-    )
+    if project_id:
+        await _verify_project_access(project_id, current_user, db)
+        stmt = (
+            select(Script)
+            .options(selectinload(Script.claims))
+            .where(Script.project_id == project_id)
+            .order_by(Script.version.desc())
+        )
+    else:
+        stmt = (
+            select(Script)
+            .join(VideoProject, Script.project_id == VideoProject.id)
+            .join(Channel, VideoProject.channel_id == Channel.id)
+        )
+        if current_user.role != "SUPER_ADMIN":
+            stmt = stmt.where(Channel.user_id == current_user.id)
+        stmt = (
+            stmt.options(selectinload(Script.claims))
+            .order_by(Script.created_at.desc())
+        )
     res = await db.execute(stmt)
     scripts = list(res.scalars().all())
     return [_attach_quality_metrics(s) for s in scripts]
@@ -246,6 +258,38 @@ async def regenerate_section(
         script_id=script_id,
         section_id=payload.section_id,
         custom_prompt=payload.custom_prompt,
+        db=db,
+    )
+    return _attach_quality_metrics(updated_script)
+
+
+@router.post("/sections/{section_id}/regenerate", response_model=ScriptResponse)
+async def regenerate_section_by_section_id(
+    section_id: str,
+    payload: Dict[str, Any] = Body(default={}),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Regenerate a single narrative section by section ID, resolving project script automatically."""
+    refinement = payload.get("refinement_prompt") or payload.get("custom_prompt") or "Enhance clarity and technical accuracy"
+    stmt = (
+        select(Script)
+        .join(VideoProject, Script.project_id == VideoProject.id)
+        .join(Channel, VideoProject.channel_id == Channel.id)
+    )
+    if current_user.role != "SUPER_ADMIN":
+        stmt = stmt.where(Channel.user_id == current_user.id)
+    stmt = stmt.options(selectinload(Script.claims)).order_by(Script.created_at.desc())
+    res = await db.execute(stmt)
+    script = res.scalars().first()
+    if not script:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active script found.")
+
+    service = ScriptGenerationService(provider=get_ai_provider())
+    updated_script = await service.regenerate_section(
+        script_id=script.id,
+        section_id=section_id,
+        custom_prompt=refinement,
         db=db,
     )
     return _attach_quality_metrics(updated_script)

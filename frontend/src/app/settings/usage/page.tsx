@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShieldCheck,
   Cpu,
@@ -13,6 +13,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatCard } from "@/components/ui/StatCard";
+import { apiClient } from "@/lib/api";
 
 interface ModelUsageRow {
   model: string;
@@ -41,10 +42,30 @@ const SAMPLE_USAGE_ROWS: ModelUsageRow[] = [
 
 export default function UsagePage() {
   const [budgetCap, setBudgetCap] = useState("0.00");
-  const currentSpend = 0.0;
+  const [currentSpend, setCurrentSpend] = useState(0.0);
+  const [usageRows] = useState<ModelUsageRow[]>(SAMPLE_USAGE_ROWS);
 
-  const totalInputTokens = SAMPLE_USAGE_ROWS.reduce((acc, r) => acc + r.inputTokens, 0);
-  const totalOutputTokens = SAMPLE_USAGE_ROWS.reduce((acc, r) => acc + r.outputTokens, 0);
+  useEffect(() => {
+    async function loadBudget() {
+      try {
+        const res = await apiClient.get<any>("/api/v1/system/budget-status");
+        if (res) {
+          if (typeof res.monthly_budget_usd === "number") {
+            setBudgetCap(res.monthly_budget_usd.toFixed(2));
+          }
+          if (typeof res.current_month_spend_usd === "number") {
+            setCurrentSpend(res.current_month_spend_usd);
+          }
+        }
+      } catch {
+        // Retain hardcoded zero-spend fallback
+      }
+    }
+    loadBudget();
+  }, []);
+
+  const totalInputTokens = usageRows.reduce((acc, r) => acc + r.inputTokens, 0);
+  const totalOutputTokens = usageRows.reduce((acc, r) => acc + r.outputTokens, 0);
   const totalTokens = totalInputTokens + totalOutputTokens;
 
   return (
@@ -165,7 +186,7 @@ export default function UsagePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-canvas-border">
-                {SAMPLE_USAGE_ROWS.map((row, idx) => (
+                {usageRows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-canvas-subtle/50 transition-colors">
                     <td className="py-3 px-3 font-mono text-zinc-200">{row.model}</td>
                     <td className="py-3 px-3 text-zinc-300">{row.requests}</td>

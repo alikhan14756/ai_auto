@@ -32,10 +32,30 @@ async def generate_thumbnail_concepts(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """Generate 3 contrasting thumbnail variants (A, B, C) and procedurally render them."""
+    target_project_id = req.project_id
+    if not target_project_id:
+        from app.models.project import VideoProject
+        from app.models.channel import Channel
+        from sqlalchemy import select
+        stmt = (
+            select(VideoProject)
+            .join(Channel, VideoProject.channel_id == Channel.id)
+            .where(Channel.user_id == current_user.id)
+            .order_by(VideoProject.created_at.desc())
+        )
+        res = await db.execute(stmt)
+        proj = res.scalars().first()
+        if not proj:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No project found. Please provide a valid project_id.",
+            )
+        target_project_id = proj.id
+
     try:
         thumbnails = await ThumbnailService.generate_concepts_and_render_variants(
             db=db,
-            project_id=req.project_id,
+            project_id=target_project_id,
             user=current_user,
         )
         return thumbnails
@@ -123,14 +143,41 @@ async def update_thumbnail_composition(
 
 
 @router.post("/{thumbnail_id}/select", response_model=ThumbnailResponse)
+@router.patch("/{thumbnail_id}/approve", response_model=ThumbnailResponse)
+@router.post("/{thumbnail_id}/approve", response_model=ThumbnailResponse)
 async def select_thumbnail_variant(
-    thumbnail_id: UUID,
+    thumbnail_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """Mark a thumbnail variant as the approved selection for publication."""
     try:
-        return await ThumbnailService.select_thumbnail(db, thumbnail_id, current_user)
+        try:
+            target_uuid = UUID(str(thumbnail_id))
+        except ValueError:
+            from app.models.thumbnail import Thumbnail
+            from app.models.project import VideoProject
+            from app.models.channel import Channel
+            from sqlalchemy import select
+            stmt = (
+                select(Thumbnail)
+                .join(VideoProject, Thumbnail.project_id == VideoProject.id)
+                .join(Channel, VideoProject.channel_id == Channel.id)
+                .where(Thumbnail.variant_code == thumbnail_id.upper())
+            )
+            if current_user.role != "SUPER_ADMIN":
+                stmt = stmt.where(Channel.user_id == current_user.id)
+            stmt = stmt.order_by(Thumbnail.created_at.desc())
+            res = await db.execute(stmt)
+            thumb = res.scalars().first()
+            if not thumb:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Thumbnail variant '{thumbnail_id}' not found.",
+                )
+            target_uuid = thumb.id
+
+        return await ThumbnailService.select_thumbnail(db, target_uuid, current_user)
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
