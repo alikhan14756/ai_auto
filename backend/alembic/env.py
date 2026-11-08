@@ -19,10 +19,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Overwrite database URL from application config if not explicitly set with a custom URL
-current_url = config.get_main_option("sqlalchemy.url")
-if not current_url or current_url.startswith("driver://"):
-    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
+# Overwrite database URL from application config dynamically
+sync_url = settings.DATABASE_URL_SYNC
+if sync_url.startswith("postgresql://"):
+    sync_url = sync_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+config.set_main_option("sqlalchemy.url", sync_url)
 
 # add your model's MetaData object here
 # for 'autogenerate' support

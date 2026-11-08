@@ -106,7 +106,7 @@ while ($attempt -lt $maxAttempts) {
     Start-Sleep -Seconds 1
     $attempt++
     try {
-        $response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue
+        $response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -Method Get -TimeoutSec 5 -ErrorAction SilentlyContinue
         if ($response -and $response.status) {
             $isHealthy = $true
             break

@@ -56,11 +56,15 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def check_db_connection() -> bool:
     """Verify database connectivity."""
     try:
+        import asyncio
         from sqlalchemy import text
 
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(text("SELECT 1"))
-            return result.scalar() == 1
+        async def _ping():
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(text("SELECT 1"))
+                return result.scalar() == 1
+
+        return await asyncio.wait_for(_ping(), timeout=1.0)
     except Exception as exc:
         logger.warning(f"Database connectivity check failed (non-fatal for M01): {exc}")
         return False
